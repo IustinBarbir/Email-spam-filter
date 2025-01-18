@@ -1,10 +1,11 @@
 import os
 import re
 import sys
+import json
 import argparse
+import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
 # Functia pentru curatarea emailurilor
@@ -25,7 +26,6 @@ def load_emails_from_folder(folder_path, label):
             with open(file_path, 'r', encoding='utf-8') as file:
                 email_content = file.readlines()  # Citeste toate liniile din fisier
                 if not email_content:
-                    print(f"Empty file: {filename}")
                     continue  # Sari peste fișierele goale
 
                 # Prima linie este subiectul, restul este corpul emailului
@@ -41,15 +41,23 @@ def load_emails_from_folder(folder_path, label):
 
     return emails, labels
 
-# Functia pentru a scrie informatii despre proiect
+# Functia pentru a scrie informatii despre proiect in format JSON
 def write_project_info(output_file):
-    project_info = """Project_name: Email Spam Filter
-Student_name: Dragos Gavrilut
-Alias_Student: Gavrilut_Dragos
-Project_version: 1.0"""
+    student_name = "Iustin Barbir"
+    project_name = "Email Spam Filter"
+    student_alias = "please work"
+    project_version = "1.0"
 
-    with open(output_file, 'w') as file:
-        file.write(project_info)
+    info_dict = {
+        "student_name": student_name,
+        "project_name": project_name,
+        "student_alias": student_alias,
+        "project_version": project_version
+    }
+
+    with open(output_file, 'w') as f:
+        json.dump(info_dict, f, indent=4)
+
     print(f"Project information written to {output_file}")
 
 # Functia pentru a analiza folderul
@@ -93,19 +101,17 @@ def main():
 
     parser.add_argument("-info", type=str, help="Output file for project information")
     parser.add_argument("-scan", type=str, nargs=2, help="Folder to scan and output file")
+    parser.add_argument("-train", action='store_true', help="Train the spam filter model")
 
     args = parser.parse_args()
 
     if args.info:
         write_project_info(args.info)
 
-    elif args.scan:
-        folder_path = args.scan[0]
-        output_file = args.scan[1]
-
-        # Incarcam emailurile de antrenament
-        clean_folder = 'D:\\Lot1\\Clean'  # Inlocuieste cu calea corecta
-        spam_folder = 'D:\\Lot1\\Spam'  # Inlocuieste cu calea corecta
+    elif args.train:
+        # Folderele de antrenament (relative)
+        clean_folder = os.path.join(os.getcwd(), 'data', 'clean')
+        spam_folder = os.path.join(os.getcwd(), 'data', 'spam')
 
         clean_emails, clean_labels = load_emails_from_folder(clean_folder, 0)  # 0 pentru clean
         spam_emails, spam_labels = load_emails_from_folder(spam_folder, 1)  # 1 pentru spam
@@ -119,11 +125,24 @@ def main():
         # Transformam emailurile in caracteristici folosind TF-IDF
         vectorizer = TfidfVectorizer(max_features=10000)
         X_train_tfidf = vectorizer.fit_transform(X_train)
-        X_test_tfidf = vectorizer.transform(X_test)
 
         # Antrenam modelul Naive Bayes
         model = MultinomialNB()
         model.fit(X_train_tfidf, y_train)
+
+        # Salvăm modelul și vectorizatorul într-un fișier
+        combined = {'model': model, 'vectorizer': vectorizer}
+        joblib.dump(combined, 'trained_model.pkl')
+        print("Modelul a fost antrenat și salvat în 'trained_model.pkl'")
+
+    elif args.scan:
+        folder_path = args.scan[0]
+        output_file = args.scan[1]
+
+        # Incarcam modelul salvat
+        combined = joblib.load('trained_model.pkl')
+        model = combined['model']
+        vectorizer = combined['vectorizer']
 
         # Apelam functia pentru scanare
         scan_folder(folder_path, output_file, vectorizer, model)
