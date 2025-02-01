@@ -20,33 +20,39 @@ def clean_text(text):
 def load_emails_from_folder(folder_path, label):
     emails = []
     labels = []
+    total_files = 0
+    processed_files = 0
+
     for filename in os.listdir(folder_path):
+        total_files += 1
         file_path = os.path.join(folder_path, filename)
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
-                email_content = file.readlines()  # Citeste toate liniile din fisier
+                email_content = file.readlines()
                 if not email_content:
-                    continue  # Sari peste fișierele goale
+                    continue
 
-                # Prima linie este subiectul, restul este corpul emailului
                 subject = email_content[0].strip()
                 body = ''.join(email_content[1:]).strip()
                 cleaned_email = clean_text(subject + ' ' + body)
 
-                # Adăugăm emailul și eticheta în liste
                 emails.append(cleaned_email)
                 labels.append(label)
+                processed_files += 1
         except Exception as e:
             print(f"Eroare la citirea fișierului {filename}: {e}")
 
+    print(f"Total fișiere în {folder_path}: {total_files}")
+    print(f"Fișiere procesate în {folder_path}: {processed_files}")
     return emails, labels
+
 
 # Functia pentru a scrie informatii despre proiect in format JSON
 def write_project_info(output_file):
     student_name = "Iustin Barbir"
     project_name = "Email Spam Filter"
     student_alias = "please work"
-    project_version = "1.0"
+    project_version = "1.1"
 
     info_dict = {
         "student_name": student_name,
